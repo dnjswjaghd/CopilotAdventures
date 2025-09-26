@@ -1,5 +1,9 @@
-// Planet objects with their name, distance from Lumoria, and size
-const lumoriaPlanets = [
+// 사용자 정의 행성/항성계 지원
+function createStarSystem(planets) {
+    return planets.map(p => ({ ...p }));
+}
+
+const defaultPlanets = [
     { name: "Mercuria", distance: 0.4, size: 4879 },
     { name: "Earthia", distance: 1, size: 12742 },
     { name: "Venusia", distance: 0.7, size: 12104 },
@@ -8,13 +12,11 @@ const lumoriaPlanets = [
 
 
 
-// Takes an array of planets and the current index for the planet being evaluated
-// and returns the number of planets that cast a shadow on the current planet
+// 그림자 계산 개선 (거리, 크기, 각도 반영)
+const { calculateShadow } = require('./Lumoria-Starlight-Intensity/shadowPhysics');
+
 function getShadowCount(planets, currentIndex) {
-    // Slice the array up to the current index, filter the planets that are larger than the current planet, and return the length of the resulting array
-    return planets.slice(0, currentIndex)
-        .filter(planet => planet.size > planets[currentIndex].size)
-        .length;
+    return calculateShadow(planets, currentIndex);
 }
 
 // Takes the current index and the number of shadows cast on the planet
@@ -33,10 +35,12 @@ function getLightIntensity(i, shadowCount) {
     return 'Partial';
 }
 
-// Calculates the light intensity of each planet by seeing how many shadows are cast on it from other planets
+// SVG, 애니메이션, 보고서 연동
+const { generateAlignmentSVG } = require('./Lumoria-Starlight-Intensity/svg');
+const { animateShadows } = require('./Lumoria-Starlight-Intensity/shadowAnimation');
+const { generateReport } = require('./Lumoria-Starlight-Intensity/report');
+
 function calculateLightIntensity(planets) {
-    // Map over the array of planets, calculate the shadow count for each planet, 
-    // and return an object with the planet name and its light intensity
     return planets.map((planet, i) => {
         const shadowCount = getShadowCount(planets, i);
         let lightIntensity = getLightIntensity(i, shadowCount);
@@ -44,8 +48,28 @@ function calculateLightIntensity(planets) {
     });
 }
 
-// Sort the array of planets by distance
-const sortedPlanets = lumoriaPlanets.sort((a, b) => a.distance - b.distance);
+// 메인 실행: 사용자 정의 입력 지원
+function runAlignment(planets = defaultPlanets) {
+    const starSystem = createStarSystem(planets);
+    const sortedPlanets = starSystem.sort((a, b) => a.distance - b.distance);
+    const intensities = calculateLightIntensity(sortedPlanets);
+    // SVG 시각화
+    const svg = generateAlignmentSVG(sortedPlanets);
+    // 그림자 애니메이션 프레임
+    const animationFrames = animateShadows(sortedPlanets);
+    // 상세 보고서
+    const report = generateReport(sortedPlanets, intensities);
+    // 결과 출력
+    console.log(report);
+    // SVG 및 애니메이션 프레임 파일로 저장 가능 (예시)
+    // require('fs').writeFileSync('alignment.svg', svg);
+    // require('fs').writeFileSync('animation.json', JSON.stringify(animationFrames));
+    return { svg, animationFrames, report, intensities };
+}
 
-// Log the light intensity of each planet to the console
-console.log(calculateLightIntensity(sortedPlanets));
+// 기본 실행
+if (require.main === module) {
+    runAlignment();
+}
+
+module.exports = { getLightIntensity, runAlignment, createStarSystem };
